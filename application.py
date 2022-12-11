@@ -4,14 +4,31 @@ from dash import Dash, html, dcc, Input, Output , dash_table, ctx
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
-import dash_pivottable
 from dash.exceptions import PreventUpdate
 import pickle
-
+import numpy as np
+import sklearn.preprocessing
+from sklearn.preprocessing import OrdinalEncoder
 # Load the dataset
 jobs_info = pd.read_csv('Cleaned_Glassdoor_DS_Jobs.csv')
+
 jobs_info.drop(jobs_info.loc[jobs_info['Industry']=='-1'].index, inplace=True)
 jobs_info.drop(jobs_info.loc[jobs_info['Founded']==-1].index, inplace=True)
+jobs_info.drop(jobs_info.loc[jobs_info['Rating']==-1].index, inplace=True)
+
+X = jobs_info.drop(columns=['Avg Salary(K)','Founded', 'Job Description', 'Headquarters', 'Location'
+                     , 'Size', 'Employer provided', 'company_txt', 'Competitors', 'job_title_sim', 'Job Location', 'Revenue'
+                    ,'Salary Estimate', 'Company Name', 'Sector', 'Age'])
+print(X['Rating'].unique())
+print(X.info())                    
+#onehotencoder = sklearn.preprocessing.OneHotEncoder(handle_unknown='ignore')
+#ohc= onehotencoder.fit(X)
+#ohc.transform(X)
+#print(ohc)
+
+
+encoder = OrdinalEncoder(categories=[[-1, 0, 1]], handle_unknown="use_encoded_value", unknown_value=-999)
+encoder.fit_transform(X) 
 
 df_pivot_skills = jobs_info[['job_title_sim','Python', 'spark', 'aws', 'excel','sql','sas','keras','pytorch','scikit','tensor','hadoop','tableau','bi','flink','mongo','google_an','Avg Salary(K)']]
 
@@ -47,11 +64,13 @@ skills_dropdown = dcc.Dropdown(options=skills, value= 'Python')
 
 skills_dropdown2 = dcc.Dropdown(options=skills, placeholder='Choose your skills', multi= True)
 
-df_rating_filter= jobs_info[jobs_info['Rating']!=-1]
-Rating_slider = dcc.Slider(id = 'rating-slider', min= df_rating_filter['Rating'].min() , 
-                                        max = df_rating_filter['Rating'].max(),
+Rating_slider = dcc.Slider(id = 'rating-slider', min= jobs_info['Rating'].min() , 
+                                        max = jobs_info['Rating'].max(),
                                         value = 4.2  
                                         )
+Rating_slider2 = dcc.Slider(id = 'rating-slider2', min= jobs_info['Rating'].min() , 
+                                        max = jobs_info['Rating'].max()
+                                        )                                        
 job_title_dropdown= dcc.Dropdown(options= jobs_info['Job Title'].unique(), placeholder= 'Select the job title')
 salary_estimate_dropdown= dcc.Dropdown(options= jobs_info['Salary Estimate'].unique(), placeholder= 'Select your desired salary')
 Location_dropdown= dcc.Dropdown(options= jobs_info['Location'].unique(), value= 'Jersey City, NJ')
@@ -104,22 +123,12 @@ app.layout = html.Div(children=[
         html.H1(children='Make a prediction of your Average Salary'),
         html.Label('Select the job title'),
         job_title_dropdown,
-        html.Label('Select the Company'),
-        companies_dropdown,
-        html.Label('Select your skills'),
-        skills_dropdown2,
-        html.Label('Select your estimated Salary'),
-        salary_estimate_dropdown,
-        html.Label('Select the State'),
-        state_dropdown,
+        html.Label('Select the rating of the company you want to work at:'),
+        Rating_slider2,
         html.Label('Choose the type of ownership'),
         Ownership_dropdown,
         html.Label('Choose the industry'),
         Industry_dropdown,
-        html.Label('Choose the Sector'),
-        Sector_dropdown,
-        html.Label('Choose the Revenue'),
-        Revenue_dropdown,
         html.Label('Paid Hourly?'),
         Hourly_radiobutton,
         html.Label('Input the Lower range of your desired salary(K)'),
@@ -128,13 +137,14 @@ app.layout = html.Div(children=[
         html.Label('Input the Upper range of your desired salary(K)'),
         Upper_salary_text,
         html.Br(),
-        html.Label('Input the age of the company you want to work at'),
-        Age_of_company_text,
-        html.Br(),
+        html.Label('Select your skills'),
+        skills_dropdown2,
         html.Label('Choose your seniority at the job'),
         Seniority_by_title_radiobutton,
         html.Label('Choose your qualification'),
         Degree_radiobutton,
+        html.Label('Select the State'),
+        state_dropdown,
         html.Button('Predict', id='predict_sal', n_clicks=0),
         html.Div(id='predicted-value')
     ])
@@ -223,42 +233,69 @@ def update_table(selected_skill):
 @app.callback(
     Output(component_id='predicted-value', component_property='children'),
     [Input(component_id=job_title_dropdown, component_property= 'value'),
-               Input(component_id=companies_dropdown, component_property= 'value'), 
-               Input(component_id=skills_dropdown2, component_property= 'value'),
-               Input(component_id=salary_estimate_dropdown, component_property= 'value'),
-               Input(component_id=Ownership_dropdown, component_property= 'value'),
-               Input(component_id=Industry_dropdown, component_property= 'value'),
-               Input(component_id=Sector_dropdown, component_property= 'value'),
-               Input(component_id=Revenue_dropdown, component_property= 'value'),
-               Input(component_id=Hourly_radiobutton, component_property= 'value'),
-               Input(component_id=Lower_salary_text, component_property= 'value'),
-               Input(component_id=Upper_salary_text, component_property= 'value'),
-               Input(component_id=Age_of_company_text, component_property= 'value'),
-               Input(component_id=Seniority_by_title_radiobutton, component_property= 'value'),
-               Input(component_id=Degree_radiobutton, component_property= 'value') ,
-               Input(component_id='predict_sal', component_property='n_clicks')])
+    Input(component_id= 'rating-slider2', component_property= 'value') ,
+    Input(component_id=Ownership_dropdown, component_property= 'value'),
+    Input(component_id=Industry_dropdown, component_property= 'value'),
+    Input(component_id=Hourly_radiobutton, component_property= 'value'),
+    Input(component_id=Lower_salary_text, component_property= 'value'),
+    Input(component_id=Upper_salary_text, component_property= 'value'),
+    Input(component_id= skills_dropdown2, component_property= 'value'),
+    Input(component_id=Seniority_by_title_radiobutton, component_property= 'value'),
+    Input(component_id=Degree_radiobutton, component_property= 'value') ,
+    Input (component_id= state_dropdown, component_property='value'),
+    Input(component_id='predict_sal', component_property='n_clicks')])
   
-def predict (selected_job, selected_company, selected_skills, selected_estimated_salary, selected_ownership, selected_industry, 
-selected_sector, selected_revenue, selected_hourly, selected_lower_salary, selected_upper_salary, selected_age, selected_seniority,
-selected_degree, btn_click):
-    print(selected_job, selected_company, selected_skills, selected_estimated_salary, selected_ownership, selected_industry, 
-    selected_sector, selected_revenue, selected_hourly, selected_lower_salary, selected_upper_salary, selected_age, selected_seniority,
-    selected_degree)
+def predict (selected_job, selected_rating, selected_ownership,  selected_industry, selected_hourly, selected_lower_salary, selected_upper_salary, 
+ selected_skills,selected_seniority,
+selected_degree, selected_state, btn_click):
+    if (selected_hourly=='Yes'):
+        selected_hourly =1
+    else: 
+        selected_hourly=0   
+    print(selected_job, selected_rating, selected_ownership,  selected_industry, 
+selected_hourly, selected_lower_salary, selected_upper_salary, selected_skills,selected_seniority,
+selected_degree, selected_state, btn_click)
     file = open('DS_Jobs.pkl', 'rb')
+    file2= open('RF_DS_Jobs.pkl', 'rb')
+    file3 = open('DTC_DS_Jobs.pkl', 'rb')    
     # dump information to that file
-    data = pickle.load(file)
+    model1 = pickle.load(file2)
+    model3= pickle.load(file3)
     skills_name = ['Python', 'spark', 'aws', 'excel','sql','sas','keras','pytorch','scikit','tensor','hadoop','tableau','bi','flink','mongo','google_an']
-    skill_value=[ ]
+    Skill_value = np.zeros(16)
 
     if 'predict_sal' == ctx.triggered_id:
         for i in range (16):
-                if(skills_name[i] == selected_skills ):
-                    skill_value.append(1)
-                else:
-                    skill_value.append(0)    
+            for j in range(len(selected_skills)):
+                if(skills_name[i] == selected_skills[j] ):
+                    Skill_value[i]=1
 
-        print(skill_value)
-        return "Clicked"
+        print(Skill_value)
+        print(type(selected_rating))
+        print(type(selected_upper_salary))
+        user1 = np.array( [selected_job, selected_rating, selected_ownership, selected_industry, 
+          selected_hourly, selected_lower_salary, selected_upper_salary])
+        print('User1', user1)
+
+        print(type(user1[6]))
+        user2= np.array([selected_seniority, selected_degree, selected_state])
+        print('User2', user2)
+        final_user_input= np.concatenate((user1,Skill_value,user2))
+        print(final_user_input)
+        final_user_input = np.reshape(final_user_input, (1, -1))
+        #le.fit(range(max(final_user_input+1)))
+        final_input= encoder.transform(final_user_input)
+        #final_user_input= pd.get_dummies([final_user_input])
+        #final_user_input = final_user_input.astype(np.float64)
+        print(final_input)
+        pred1 = model1.predict(final_input)
+        pred3 = model3.predict(final_input)
+        output1= abs(round(pred1[0],2))
+        output2= abs(round(pred3[0],2))
+
+        print('From Random Forest: ', output1)
+        print('From Decision Tree Classifier: ', output2)
+        return "output"
     else:
         raise PreventUpdate
     

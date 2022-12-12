@@ -11,6 +11,7 @@ import sklearn.preprocessing
 from sklearn.preprocessing import OrdinalEncoder
 # Load the dataset
 jobs_info = pd.read_csv('Cleaned_Glassdoor_DS_Jobs.csv')
+HR_comma_sep= pd.read_csv('HR_comma_sep.csv')
 
 jobs_info.drop(jobs_info.loc[jobs_info['Industry']=='-1'].index, inplace=True)
 jobs_info.drop(jobs_info.loc[jobs_info['Founded']==-1].index, inplace=True)
@@ -20,15 +21,13 @@ X = jobs_info.drop(columns=['Avg Salary(K)','Founded', 'Job Description', 'Headq
                      , 'Size', 'Employer provided', 'company_txt', 'Competitors', 'job_title_sim', 'Job Location', 'Revenue'
                     ,'Salary Estimate', 'Company Name', 'Sector', 'Age'])
 print(X['Rating'].unique())
-print(X.info())                    
-#onehotencoder = sklearn.preprocessing.OneHotEncoder(handle_unknown='ignore')
-#ohc= onehotencoder.fit(X)
-#ohc.transform(X)
-#print(ohc)
+print(X.info())  
 
-
-encoder = OrdinalEncoder(categories=[[-1, 0, 1]], handle_unknown="use_encoded_value", unknown_value=-999)
-encoder.fit_transform(X) 
+for column in X.columns:
+            if X[column].dtype == type(object):
+                le = sklearn.preprocessing.LabelEncoder()
+                X[column]= le.fit_transform(X[column])
+print(X)
 
 df_pivot_skills = jobs_info[['job_title_sim','Python', 'spark', 'aws', 'excel','sql','sas','keras','pytorch','scikit','tensor','hadoop','tableau','bi','flink','mongo','google_an','Avg Salary(K)']]
 
@@ -87,6 +86,15 @@ Degree_radiobutton= dcc.RadioItems(options=['Masters', 'PHD', 'N/A'])
 companies_dropdown= dcc.Dropdown(options=jobs_info['Company Name'].unique(),placeholder='Select the company')
 
 
+Satisfaction_dropdown= dcc.Dropdown(options= HR_comma_sep['satisfaction_level'].unique(), placeholder='Choose the satisfaction_level')
+last_evaluation_dropdown= dcc.Dropdown(options= HR_comma_sep['last_evaluation'].unique(), placeholder='Choose the last evluation of employee')
+number_project_dropdown= dcc.Dropdown(options= HR_comma_sep['number_project'].unique(), placeholder='Choose the number of project done by the employee')
+time_dropdown= dcc.Dropdown(options= HR_comma_sep['time_spend_company'].unique(), placeholder='Choose the time spend by the employee')
+time_Work_accident_dropdown= dcc.Dropdown(options= HR_comma_sep['Work_accident'].unique(), placeholder='Choose the time work accident by the employee')
+promotion_dropdown= dcc.Dropdown(options= HR_comma_sep['promotion_last_5years'].unique(), placeholder='How many promotions of the employee')
+Department_dropdown= dcc.Dropdown(options= HR_comma_sep['sales'].unique(), placeholder='Choose the department of the employee')
+Salary_dropdown= dcc.Dropdown(options= HR_comma_sep['salary'].unique(), placeholder='Choose the range of the employee''s salary')
+Avg_Monthly_hours_dropdown= dcc.Dropdown(options= HR_comma_sep['average_montly_hours'].unique(), placeholder='Choose the average monthly hours of employee')
 
 app.layout = html.Div(children=[
     html.H1(children='Data Scientist Average Job Salary by States, Sectors, and Type of Ownership'),
@@ -146,8 +154,35 @@ app.layout = html.Div(children=[
         html.Label('Select the State'),
         state_dropdown,
         html.Button('Predict', id='predict_sal', n_clicks=0),
-        html.Div(id='predicted-value')
-    ])
+        html.Br(),
+        html.Div(id='predicted-value',   style={'color': 'blue', 'fontSize': 20})
+    ],  style={'marginBottom': 50, 'marginTop': 25}),
+
+        html.Br(),
+    html.Div([ 
+        html.H1(children='Make a prediction if the employee will leave the job'),
+        html.Label('Select the satisfaction level of employee'),
+        Satisfaction_dropdown,
+        html.Label('Select the last year evaluation of the employee'),
+        last_evaluation_dropdown,
+        html.Label('Select the number of projects done by the employee'),
+        number_project_dropdown,
+        html.Label('Select the average monthly hours of the employe in the company'),
+        Avg_Monthly_hours_dropdown  ,
+        html.Label('Select the time spent  by the employe in the company'),
+        time_dropdown,
+        html.Label('Select the work accident done by the employe in the company'),
+        time_Work_accident_dropdown, 
+        html.Label('Select the number of last years promotions of the employe in the company'),
+        promotion_dropdown,
+        html.Label('Select the department of the employee in the company'),
+        Department_dropdown, 
+        html.Label('Select the salary range of the employee in the company'),        
+        Salary_dropdown,
+        html.Button('Submit to Predict', id='predict_left', n_clicks=0),
+        html.Br(),
+        html.Div(id='predicted-value-employee',   style={'color': 'blue', 'fontSize': 20})
+    ],  style={'marginBottom': 50, 'marginTop': 25})
     
      ])
     
@@ -265,6 +300,11 @@ selected_degree, selected_state, btn_click)
     Skill_value = np.zeros(16)
 
     if 'predict_sal' == ctx.triggered_id:
+        
+
+       #onehotencoder = sklearn.preprocessing.OneHotEncoder(sparse= False,  handle_unknown='ignore')
+       #ohc= onehotencoder.fit(X)
+       #print(ohc)
         for i in range (16):
             for j in range(len(selected_skills)):
                 if(skills_name[i] == selected_skills[j] ):
@@ -281,25 +321,96 @@ selected_degree, selected_state, btn_click)
         user2= np.array([selected_seniority, selected_degree, selected_state])
         print('User2', user2)
         final_user_input= np.concatenate((user1,Skill_value,user2))
-        print(final_user_input)
-        final_user_input = np.reshape(final_user_input, (1, -1))
+        print(final_user_input.shape)
+        #final_user_input = np.reshape(final_user_input, (1, -1))
         #le.fit(range(max(final_user_input+1)))
-        final_input= encoder.transform(final_user_input)
+       # df_final_input= pd.DataFrame(final_user_input, columns= ['Job Title', 'Rating', 'Type of Ownership', 'Industry', 'Hourly', 'Lower Salary', 'Upper Salary', 
+        #'Python', 'spark', 'aws', 'excel','sql','sas','keras','pytorch','scikit','tensor','hadoop','tableau','bi','flink','mongo','google_an', 'seniority', 'Degree', 'State'])
+        #print(df_final_input)
+        final_input= le.fit_transform(final_user_input)
+
         #final_user_input= pd.get_dummies([final_user_input])
         #final_user_input = final_user_input.astype(np.float64)
         print(final_input)
-        pred1 = model1.predict(final_input)
-        pred3 = model3.predict(final_input)
+        pred1 = model1.predict([final_input])
+        pred3 = model3.predict([final_input])
         output1= abs(round(pred1[0],2))
         output2= abs(round(pred3[0],2))
 
         print('From Random Forest: ', output1)
         print('From Decision Tree Classifier: ', output2)
-        return "output"
+        return (f'The predicted salary is :${output1}K')
     else:
         raise PreventUpdate
-    
+
+
+
+
+
+@app.callback(
+    Output(component_id='predicted-value-employee', component_property='children'),
+    [Input(component_id=Satisfaction_dropdown, component_property= 'value'),
+    Input(component_id= last_evaluation_dropdown, component_property= 'value') ,
+    Input(component_id=number_project_dropdown, component_property= 'value'),
+    Input(component_id=Avg_Monthly_hours_dropdown, component_property= 'value'),
+    Input(component_id=time_dropdown, component_property= 'value'),
+    Input(component_id=time_Work_accident_dropdown, component_property= 'value'),
+    Input(component_id=promotion_dropdown, component_property= 'value'),
+    Input(component_id=Department_dropdown, component_property= 'value'),
+    Input(component_id= Salary_dropdown, component_property= 'value'),
+    Input(component_id='predict_left', component_property='n_clicks')])
   
+def predict_employee_retention (selected_satisfaction, selected_evaluation, selected_number_project_dropdown,  selected_monthly_hours,selected_time_dropdown, 
+selected_accident, selected_promotion, selected_department, selected_salary, button_click):
+    if (selected_department=='sales'):
+        selected_department= 0
+    elif(selected_department=='accounting') :
+          selected_department=1
+    elif(selected_department=='hr') :
+          selected_department=2      
+    elif(selected_department=='technical')  :
+        selected_department= 3
+    elif(selected_department=='support') :
+          selected_department=4
+    elif(selected_department=='management') :
+          selected_department=5     
+    elif(selected_department=='IT')  :
+        selected_department= 6
+    elif(selected_department=='product_mng')  :
+        selected_department= 7
+    elif(selected_department=='marketing') :
+          selected_department=8
+    else:
+          selected_department=9    
+
+    if (selected_salary=='low'):
+        selected_salary= 0
+    elif(selected_salary=='medium') :
+          selected_salary=1
+    elif(selected_salary=='high') :
+          selected_salary=2      
+    user_inputs= np.array([selected_satisfaction, selected_evaluation, selected_number_project_dropdown, selected_monthly_hours, selected_time_dropdown, 
+selected_accident, selected_promotion, selected_department, selected_salary])
+    print(selected_satisfaction, selected_evaluation, selected_number_project_dropdown, selected_monthly_hours, selected_time_dropdown, 
+selected_accident, selected_promotion, selected_department, selected_salary,button_click )
+    model_file = open('Job_Satf.pkl', 'rb')  
+    # dump information to that file
+    model_employee = pickle.load(model_file)
+
+    if 'predict_left' == ctx.triggered_id:
+        
+        print(user_inputs)
+        final_arr = user_inputs.astype(np.float64)
+        pred1 = model_employee.predict([final_arr])
+        output= abs(round(pred1[0],2))
+        print (output)
+        print('From Random Forest: ', output)
+        if (output > 0 and output<0.5):
+            return ('The employee is likely to stay in the company')
+        elif(output >0.5 and output < 1):
+            return ('The employee is likely to leave  the company')
+    else:
+        raise PreventUpdate 
 
 # Run local server
 if __name__ == '__main__':

@@ -205,7 +205,7 @@ def update_graph(selected_state):
     hist_fig = px.histogram(filtered_state,
                        x='Sector', y='Avg Salary(K)', barmode='stack',
                        color='Type of ownership', 
-                       title=f'Maximum of Avg Salary in {selected_state}')#.update_layout(yaxis_title="Maximum of Average Salary")
+                       title=f'Sum of Avg Salary in {selected_state}')
     hist_fig.update_layout(
     plot_bgcolor=colors['background'],
     paper_bgcolor=colors['background'],

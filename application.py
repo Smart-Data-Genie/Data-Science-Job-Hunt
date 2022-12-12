@@ -173,7 +173,7 @@ app.layout = html.Div(children=[
         time_dropdown,
         html.Label('Select the work accident done by the employe in the company'),
         time_Work_accident_dropdown, 
-        html.Label('Select the number of last years promotions of the employe in the company'),
+        html.Label('Was the employee promoted last year(1 for yes and 0 for No'),
         promotion_dropdown,
         html.Label('Select the department of the employee in the company'),
         Department_dropdown, 
